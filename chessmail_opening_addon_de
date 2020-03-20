@@ -1,0 +1,74 @@
+// ==UserScript==
+// @name        chessmail_opening_addon_de
+// @require     http://ajax.googleapis.com/ajax/libs/jquery/1.11.3/jquery.min.js
+// @namespace   chessmail.de
+// @include     http://www.chessmail.de/game/*
+// @include     https://www.chessmail.de/game/*
+// @exclude     http://www.chessmail.de/game/list/finished.html*
+// @exclude     https://www.chessmail.de/game/list/finished.html*
+// @version     1
+// @grant       GM_xmlhttpRequest
+// @connect     raw.githubusercontent.com
+// ==/UserScript==
+
+this.$ = this.jQuery = jQuery.noConflict(true);
+
+var apiURL = "https://raw.githubusercontent.com/hayatbiralem/eco.json/master/eco.json";
+
+function SortByMovesDesc(a, b)
+{
+  var aMovesLength = a.theMoves.length;
+  var bMovesLength = b.theMoves.length;
+  return ((aMovesLength > bMovesLength) ? -1 : ((aMovesLength < bMovesLength) ? 1 : 0));
+}
+
+function processJSON_Response (rspObj) {
+    if (rspObj.status != 200  &&  rspObj.status != 304) {
+        reportAJAX_Error (rspObj);
+        return;
+    }
+    var json_openings = rspObj.response;
+
+    var openings = [];
+    $.each(json_openings, function(i, v) {
+        var testArr = moveArr.slice()
+        while(testArr.length > 0)
+        {
+            if (v.moves.toLowerCase().trim() == testArr.join(' ').toLowerCase().trim())
+            {
+                openings.push({theName: v.name, theMoves: v.moves, theECO: v.eco});
+            }
+            testArr.pop();
+        }
+});
+
+    openings.sort(SortByMovesDesc);
+    $('#x_opening_x').append('<b>Opening:</b><br><i>' + openings[0].theName + '</i><br><br>');
+    $('#x_opening_x').append('<b>ECO code:<br></b><i>' + openings[0].theECO + '</i><br><br>');
+    $('#x_opening_x').append('<b>Move list:<br></b><i>' + openings[0].theMoves + '</i><br><br>');
+}
+
+function reportAJAX_Error (rspObj) {
+    console.error (`TM scrpt => Error ${rspObj.status}!  ${rspObj.statusText}`);
+}
+
+function map_notation(pThis)
+{
+    return (pThis.replace('D', 'Q').replace('T', 'R').replace('L', 'B').replace('S', 'N'));
+}
+
+$('#tab_move').prepend('<div id="x_opening_x"/>');
+
+var idx = 1;
+var moveArr = [];
+$('#tab_notation tr td div').each(function(index){var theMove=(index % 2 != 0 ? ' ' : (idx++) + '. ') + map_notation($(this).text()); moveArr.push(theMove.trim())});
+
+GM_xmlhttpRequest ( {
+    method:         "GET",
+    url:            apiURL,
+    responseType:   "json",
+    onload:         processJSON_Response,
+    onabort:        reportAJAX_Error,
+    onerror:        reportAJAX_Error,
+    ontimeout:      reportAJAX_Error
+} );
